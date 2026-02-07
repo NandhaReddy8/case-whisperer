@@ -2,7 +2,7 @@
 
 > **Professional Legal Case Management System with Automated eCourt Integration**
 
-A comprehensive web application for tracking and managing Indian legal cases with automated data fetching from eCourts, CAPTCHA solving, and Google Calendar integration.
+A comprehensive web application for tracking and managing Indian legal cases with automated data fetching from eCourts, AI-powered CAPTCHA solving, and Google Calendar integration.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
@@ -11,29 +11,52 @@ A comprehensive web application for tracking and managing Indian legal cases wit
 
 ## ✨ Features
 
-### 🤖 **Automated eCourt Integration**
-- **Smart CAPTCHA Solving**: AI-powered CAPTCHA resolution using OpenCV + Tesseract
-- **Multi-Search Support**: CNR, Case Number, Diary Number, Party Name searches
+### 🤖 **Advanced eCourt Integration**
+- **AI-Powered CAPTCHA Solving**: Automatic CAPTCHA resolution using OpenCV + Tesseract OCR
+- **Multiple Search Methods**: CNR, Case Number, Case Type, Act Type, Diary Number, and Party Name searches
 - **Real-time Data Sync**: Automatic case status updates from government servers
-- **Retry Logic**: Robust error handling with intelligent retry mechanisms
+- **Intelligent Retry Logic**: Robust error handling with exponential backoff
+- **Comprehensive Data Extraction**: Parties, hearings, orders, objections, and FIR details
+- **Court Validation**: Validates against known court combinations for accuracy
+
+### 📊 **Enhanced Data Management**
+- **SQLite Storage Layer**: Efficient local storage with proper indexing and JSON support
+- **Change Detection**: Hash-based change detection to avoid unnecessary updates
+- **Bulk Operations**: Bulk case refresh with detailed statistics
+- **Search & Filter**: Full-text search across cases with advanced filtering
+- **Data Export**: Export case data in JSON format (CSV coming soon)
+- **Storage Analytics**: Comprehensive statistics and storage insights
 
 ### 📅 **Google Calendar Integration**
 - **Automatic Event Creation**: Hearing dates sync to Google Calendar
 - **Smart Reminders**: 1-day and 1-week advance notifications
 - **Duplicate Prevention**: Intelligent event management
-- **Optional Integration**: Works with or without calendar sync
+- **Optional Integration**: Works seamlessly with or without calendar sync
+- **Real-time Updates**: Calendar events update when hearing dates change
 
 ### 🎨 **Professional Frontend**
 - **Modern UI**: Built with React, TypeScript, and Tailwind CSS
 - **Law Firm Theme**: Professional design with legal industry aesthetics
 - **Responsive Design**: Works seamlessly on desktop and mobile
 - **Real-time Updates**: Live case status updates and notifications
+- **Interactive Calendar**: Visual calendar view for upcoming hearings
+- **Case Timeline**: Detailed case history with visual timeline
 
 ### ⚡ **Powerful Backend**
-- **FastAPI Framework**: High-performance async API
-- **Background Scheduler**: Automated 3 AM daily case refreshes
-- **SQLite Database**: Lightweight, reliable data storage
-- **Comprehensive Logging**: Detailed operation tracking
+- **FastAPI Framework**: High-performance async API with automatic documentation
+- **Background Scheduler**: Automated daily case refreshes at 3 AM
+- **Comprehensive API**: RESTful API with full CRUD operations
+- **Error Handling**: Comprehensive error classification and handling
+- **Logging**: Detailed operation tracking and debugging support
+- **Court Management**: Dynamic court and case type management
+
+### 🔍 **Advanced Search Capabilities**
+- **CNR Search**: Direct case lookup using 16-digit CNR numbers
+- **Case Number Search**: Search by case type, number, and year
+- **Party Name Search**: Find cases by petitioner or respondent names
+- **Diary Number Search**: Search using court diary numbers
+- **Case Type Search**: Browse cases by specific case types
+- **Act Type Search**: Find cases under specific legal acts
 
 ## 🚀 Quick Start
 
@@ -123,23 +146,26 @@ sudo apt-get install tesseract-ocr tesseract-ocr-eng
 
 ### Adding Cases
 1. Click "Add New Case" in the dashboard
-2. Choose search type (CNR, Case Number, etc.)
-3. Enter case details
-4. Enable calendar sync if desired
-5. Click "Search & Add Case"
-6. CAPTCHA is solved automatically!
+2. Select your court from the dropdown
+3. Choose search type (CNR, Case Number, etc.)
+4. Enter case details
+5. Enable calendar sync if desired
+6. Click "Search & Add Case"
+7. CAPTCHA is solved automatically!
 
 ### Managing Cases
-- **View Details**: Click on any case to see full information
+- **View Details**: Click on any case to see comprehensive information
 - **Refresh Data**: Manual or automatic updates from eCourt
-- **Calendar Sync**: Toggle Google Calendar integration
-- **Case History**: View complete case timeline
+- **Calendar Sync**: Toggle Google Calendar integration per case
+- **Case History**: View complete case timeline with orders and hearings
+- **Search & Filter**: Find cases quickly using various criteria
 
 ### Automated Features
 - **Daily Refresh**: Cases update automatically at 3 AM
-- **Change Detection**: Only updates when case data changes
+- **Change Detection**: Only updates when case data actually changes
 - **Error Handling**: Graceful handling of eCourt server issues
-- **Retry Logic**: Automatic retries for failed requests
+- **Retry Logic**: Automatic retries for failed requests with exponential backoff
+- **Storage Optimization**: Efficient data storage with proper indexing
 
 ## 🏗️ Architecture
 
@@ -150,6 +176,10 @@ case-whisperer/
 │   │   ├── api/routes/     # REST API endpoints
 │   │   ├── core/           # Configuration & database
 │   │   ├── lib/            # eCourt integration
+│   │   │   ├── entities.py # Data models
+│   │   │   ├── parsers.py  # HTML parsing
+│   │   │   ├── storage.py  # SQLite storage
+│   │   │   └── captcha.py  # CAPTCHA solving
 │   │   ├── models/         # Pydantic data models
 │   │   └── services/       # Business logic
 │   ├── requirements.txt    # Python dependencies
@@ -162,22 +192,37 @@ case-whisperer/
 │   │   ├── lib/           # API client & utilities
 │   │   └── types/         # TypeScript definitions
 │   └── package.json       # Node dependencies
-│
-└── reference/              # Working implementation reference
 ```
 
-## 🔌 API Endpoints
+## 🔌 Enhanced API Endpoints
 
+### Core Case Management
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/v1/health` | Health check |
 | `POST` | `/api/v1/cases` | Add new case |
-| `GET` | `/api/v1/cases` | List all cases |
+| `GET` | `/api/v1/cases` | List all cases with filtering |
+| `GET` | `/api/v1/cases/search` | Search cases by various fields |
 | `GET` | `/api/v1/cases/{id}` | Get specific case |
 | `PUT` | `/api/v1/cases/{id}` | Update case |
 | `DELETE` | `/api/v1/cases/{id}` | Delete case |
 | `POST` | `/api/v1/cases/{id}/refresh` | Refresh case data |
+| `POST` | `/api/v1/cases/refresh/bulk` | Bulk refresh cases |
 | `POST` | `/api/v1/cases/search` | Search without adding |
+
+### Court & Case Type Management
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/courts` | Get available courts |
+| `GET` | `/api/v1/courts/{state_code}/case-types` | Get case types for court |
+| `GET` | `/api/v1/courts/{state_code}/act-types` | Get act types for court |
+
+### Analytics & Export
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/cases/stats` | Get case statistics |
+| `GET` | `/api/v1/cases/refresh/status` | Get refresh status |
+| `POST` | `/api/v1/cases/export` | Export cases data |
 
 ## ⚙️ Configuration
 
@@ -222,13 +267,44 @@ curl http://localhost:8000/api/v1/health
 
 **eCourt 404 Errors**
 - Government servers can be unreliable
-- System includes retry logic and fallbacks
+- System includes comprehensive retry logic and fallbacks
 - Check server logs for detailed error information
 
 **Calendar Sync Issues**
 - Verify Google API credentials
 - Check OAuth permissions
 - Ensure `credentials.json` is in backend directory
+
+**Database Issues**
+- SQLite database is created automatically
+- Check file permissions in backend directory
+- Use storage statistics endpoint to verify data
+
+## 🔄 Data Flow
+
+1. **Case Search**: User searches via frontend → API validates → eCourt client fetches data
+2. **CAPTCHA Solving**: Automatic image processing → OCR → Text extraction
+3. **Data Parsing**: HTML response → Structured data → Entity validation
+4. **Storage**: SQLite database → Indexed storage → Change detection
+5. **Calendar Sync**: Hearing dates → Google Calendar API → Event creation
+6. **Updates**: Scheduled refresh → Change detection → Notification
+
+## 📊 Performance Features
+
+- **Efficient Storage**: SQLite with proper indexing for fast queries
+- **Change Detection**: Hash-based comparison to avoid unnecessary updates
+- **Bulk Operations**: Process multiple cases efficiently
+- **Caching**: Intelligent caching of frequently accessed data
+- **Retry Logic**: Exponential backoff for failed requests
+- **Connection Pooling**: Optimized database connections
+
+## 🔒 Security Features
+
+- **Input Validation**: Comprehensive validation of all inputs
+- **Error Handling**: Secure error messages without sensitive data exposure
+- **Rate Limiting**: Built-in protection against excessive requests
+- **CORS Configuration**: Proper cross-origin resource sharing setup
+- **Data Sanitization**: Clean and validate all data from external sources
 
 ## 🤝 Contributing
 
@@ -245,17 +321,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - **Indian eCourts System** - Government digital platform
-- **Tesseract OCR** - Open-source OCR engine
+- **Tesseract OCR** - Open-source OCR engine for CAPTCHA solving
 - **FastAPI** - Modern Python web framework
 - **React** - Frontend framework
 - **shadcn/ui** - Beautiful UI components
+- **Reference Implementation** - Based on proven eCourt integration patterns
 
 ## 📞 Support
 
 - **Issues**: [GitHub Issues](https://github.com/yourusername/case-whisperer/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/yourusername/case-whisperer/discussions)
-- **Documentation**: [Wiki](https://github.com/yourusername/case-whisperer/wiki)
 
 ---
 
-**Case Whisperer** - Revolutionizing legal case management with automation and intelligence. 🏛️✨
+**Case Whisperer** - Revolutionizing legal case management with automation, intelligence, and comprehensive eCourt integration. 🏛️✨

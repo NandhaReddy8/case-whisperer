@@ -1,22 +1,56 @@
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { mockCases } from '@/data/mockCases';
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { LegalCase } from '@/types/case';
+import { apiClient } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [cases, setCases] = useState<LegalCase[]>([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadCases();
+  }, []);
+
+  const loadCases = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.getCases(0, 100);
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      if (response.data) {
+        const convertedCases = response.data.map(caseData => apiClient.convertToLegalCase(caseData));
+        setCases(convertedCases);
+      }
+    } catch (error) {
+      console.error('Error loading cases:', error);
+      toast({
+        title: "Error Loading Cases",
+        description: error instanceof Error ? error.message : "Failed to load cases",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   // Get cases with hearings
-  const casesWithHearings = mockCases.filter(c => c.nextHearingDate !== null);
+  const casesWithHearings = cases.filter(c => c.nextHearingDate !== null);
 
   // Get hearings for a specific day
   const getHearingsForDay = (day: Date) => {
@@ -30,6 +64,19 @@ export default function CalendarPage() {
 
   // Calculate start offset for the first day of month
   const startOffset = monthStart.getDay();
+
+  if (loading) {
+    return (
+      <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Loading calendar...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto space-y-6">

@@ -1,5 +1,5 @@
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { mockCases } from '@/data/mockCases';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -15,20 +15,136 @@ import {
   ExternalLink,
   CheckCircle2,
   Circle,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { LegalCase } from '@/types/case';
+import { apiClient } from '@/lib/api';
 
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const caseData = mockCases.find(c => c.id === id);
-  const [syncCalendar, setSyncCalendar] = useState(caseData?.syncCalendar ?? false);
+  const [caseData, setCaseData] = useState<LegalCase | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [syncCalendar, setSyncCalendar] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      loadCaseData();
+    }
+  }, [id]);
+
+  const loadCaseData = async () => {
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      const response = await apiClient.getCase(parseInt(id));
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      if (response.data) {
+        const convertedCase = apiClient.convertToLegalCase(response.data);
+        setCaseData(convertedCase);
+        setSyncCalendar(convertedCase.syncCalendar);
+      }
+    } catch (error) {
+      console.error('Error loading case:', error);
+      toast({
+        title: "Error Loading Case",
+        description: error instanceof Error ? error.message : "Failed to load case details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (!id || !caseData) return;
+    
+    try {
+      setRefreshing(true);
+      toast({
+        title: "Refreshing Case",
+        description: "Fetching latest updates from eCourts...",
+      });
+
+      const response = await apiClient.refreshCase(parseInt(id), false);
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      if (response.data) {
+        const convertedCase = apiClient.convertToLegalCase(response.data);
+        setCaseData(convertedCase);
+        toast({
+          title: "Case Refreshed",
+          description: "Case data has been updated successfully",
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing case:', error);
+      toast({
+        title: "Refresh Failed",
+        description: error instanceof Error ? error.message : "Failed to refresh case",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleCalendarToggle = async (checked: boolean) => {
+    if (!id) return;
+    
+    try {
+      const response = await apiClient.updateCase(parseInt(id), {
+        sync_calendar: checked
+      });
+      
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      setSyncCalendar(checked);
+      toast({
+        title: checked ? "Calendar Sync Enabled" : "Calendar Sync Disabled",
+        description: checked 
+          ? "Hearing dates will be synced to Google Calendar"
+          : "Calendar sync has been turned off",
+      });
+    } catch (error) {
+      console.error('Error updating calendar sync:', error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update calendar sync setting",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex items-center gap-2">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Loading case details...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!caseData) {
     return (
@@ -41,23 +157,6 @@ export default function CaseDetail() {
       </div>
     );
   }
-
-  const handleRefresh = () => {
-    toast({
-      title: "Refreshing Case",
-      description: "Fetching latest updates from eCourts...",
-    });
-  };
-
-  const handleCalendarToggle = (checked: boolean) => {
-    setSyncCalendar(checked);
-    toast({
-      title: checked ? "Calendar Sync Enabled" : "Calendar Sync Disabled",
-      description: checked 
-        ? "Hearing dates will be synced to Google Calendar"
-        : "Calendar sync has been turned off",
-    });
-  };
 
   return (
     <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
@@ -93,8 +192,12 @@ export default function CaseDetail() {
           <p className="text-muted-foreground">{caseData.caseType}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleRefresh}>
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button 
+            variant="outline" 
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
           <Button className="bg-accent hover:bg-accent/90 text-accent-foreground">
@@ -122,7 +225,7 @@ export default function CaseDetail() {
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Filing Date</p>
                 <p className="text-sm text-foreground">
-                  {format(parseISO(caseData.filingDate), 'dd MMMM yyyy')}
+                  {caseData.filingDate ? format(parseISO(caseData.filingDate), 'dd MMMM yyyy') : 'Not available'}
                 </p>
               </div>
               <div>
@@ -203,52 +306,63 @@ export default function CaseDetail() {
             </h3>
 
             <div className="relative space-y-0">
-              {caseData.history.map((item, index) => {
-                const isLast = index === caseData.history.length - 1;
-                const hasOrder = item.order !== null;
+              {caseData.history && caseData.history.length > 0 ? (
+                caseData.history.map((item, index) => {
+                  const isLast = index === caseData.history.length - 1;
+                  const hasOrder = item.order !== null;
 
-                return (
-                  <div key={item.id} className="relative flex gap-4 pb-8">
-                    {/* Timeline Line */}
-                    {!isLast && (
-                      <div className="absolute left-[11px] top-8 w-0.5 h-full bg-border" />
-                    )}
-                    
-                    {/* Timeline Dot */}
-                    <div className="relative z-10 flex-shrink-0">
-                      {hasOrder ? (
-                        <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center">
-                          <CheckCircle2 className="w-4 h-4 text-accent" />
-                        </div>
-                      ) : (
-                        <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-                          <Circle className="w-3 h-3 text-muted-foreground" />
-                        </div>
+                  return (
+                    <div key={item.id} className="relative flex gap-4 pb-8">
+                      {/* Timeline Line */}
+                      {!isLast && (
+                        <div className="absolute left-[11px] top-8 w-0.5 h-full bg-border" />
                       )}
-                    </div>
+                      
+                      {/* Timeline Dot */}
+                      <div className="relative z-10 flex-shrink-0">
+                        {hasOrder ? (
+                          <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center">
+                            <CheckCircle2 className="w-4 h-4 text-accent" />
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                            <Circle className="w-3 h-3 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{item.purpose}</p>
-                          {item.order && (
-                            <p className="text-sm text-accent mt-1">Order: {item.order}</p>
-                          )}
-                          {item.nextPurpose && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Next: {item.nextPurpose}
-                            </p>
-                          )}
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{item.purpose}</p>
+                            {item.order && (
+                              <p className="text-sm text-accent mt-1">Order: {item.order}</p>
+                            )}
+                            {item.nextPurpose && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Next: {item.nextPurpose}
+                              </p>
+                            )}
+                            {item.judge && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Judge: {item.judge}
+                              </p>
+                            )}
+                          </div>
+                          <time className="text-xs text-muted-foreground whitespace-nowrap">
+                            {format(parseISO(item.date), 'dd MMM yyyy')}
+                          </time>
                         </div>
-                        <time className="text-xs text-muted-foreground whitespace-nowrap">
-                          {format(parseISO(item.date), 'dd MMM yyyy')}
-                        </time>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">No case history available</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

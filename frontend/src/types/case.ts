@@ -16,6 +16,16 @@ export interface LegalCase {
   history: CaseHistory[];
   syncCalendar: boolean;
   lastSyncedAt: string | null;
+  // Enhanced fields from reference implementation
+  registrationNumber?: string;
+  registrationDate?: string;
+  firstHearingDate?: string;
+  decisionDate?: string;
+  natureOfDisposal?: string;
+  coram?: string;
+  bench?: string;
+  category?: string;
+  subCategory?: string;
 }
 
 export interface CaseHistory {
@@ -24,9 +34,10 @@ export interface CaseHistory {
   purpose: string;
   order: string | null;
   nextPurpose: string | null;
+  judge?: string;
 }
 
-export type SearchType = 'cnr' | 'caseNo' | 'partyName' | 'diaryNo';
+export type SearchType = 'cnr' | 'case' | 'party' | 'diary' | 'filing';
 
 export interface SearchFormData {
   searchType: SearchType;
@@ -35,5 +46,8 @@ export interface SearchFormData {
   caseNumber?: string;
   year?: string;
   diaryNumber?: string;
+  filingNumber?: string;
   partyName?: string;
+  courtStateCode?: string;
+  courtCode?: string;
 }

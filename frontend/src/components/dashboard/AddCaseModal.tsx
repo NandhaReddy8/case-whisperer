@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,9 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Search, Hash, User, FileText, Loader2, Calendar } from 'lucide-react';
 import { SearchType } from '@/types/case';
-import { caseTypes } from '@/data/mockCases';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api';
+import { apiClient, CaseType, Court } from '@/lib/api';
 
 interface AddCaseModalProps {
   onAddCase?: (data: any) => void;
@@ -23,6 +22,11 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
   const [syncCalendar, setSyncCalendar] = useState(false);
   const { toast } = useToast();
 
+  // Dynamic data
+  const [caseTypes, setCaseTypes] = useState<CaseType[]>([]);
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [loadingCaseTypes, setLoadingCaseTypes] = useState(false);
+
   // Form states
   const [cnrNumber, setCnrNumber] = useState('');
   const [caseType, setCaseType] = useState('');
@@ -30,6 +34,39 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [diaryNumber, setDiaryNumber] = useState('');
   const [partyName, setPartyName] = useState('');
+  const [selectedCourt, setSelectedCourt] = useState('6'); // Default to Gujarat
+
+  useEffect(() => {
+    if (open) {
+      loadCourts();
+      loadCaseTypes();
+    }
+  }, [open]);
+
+  const loadCourts = async () => {
+    try {
+      const response = await apiClient.getCourts();
+      if (response.data?.courts) {
+        setCourts(response.data.courts);
+      }
+    } catch (error) {
+      console.error('Error loading courts:', error);
+    }
+  };
+
+  const loadCaseTypes = async () => {
+    try {
+      setLoadingCaseTypes(true);
+      const response = await apiClient.getCaseTypes(selectedCourt);
+      if (response.data?.case_types) {
+        setCaseTypes(response.data.case_types);
+      }
+    } catch (error) {
+      console.error('Error loading case types:', error);
+    } finally {
+      setLoadingCaseTypes(false);
+    }
+  };
 
   const handleSearch = async () => {
     setIsLoading(true);
@@ -44,6 +81,7 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
         year: year || undefined,
         diaryNumber: diaryNumber || undefined,
         partyName: partyName || undefined,
+        courtStateCode: selectedCourt,
       });
 
       // Add case using the API
@@ -124,6 +162,27 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
         <DialogHeader>
           <DialogTitle className="font-display text-xl">Add New Case</DialogTitle>
         </DialogHeader>
+
+        {/* Court Selection */}
+        <div className="space-y-2">
+          <Label>Court</Label>
+          <Select value={selectedCourt} onValueChange={(value) => {
+            setSelectedCourt(value);
+            setCaseTypes([]); // Clear case types when court changes
+            loadCaseTypes(); // Load new case types
+          }}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select court" />
+            </SelectTrigger>
+            <SelectContent>
+              {courts.map((court) => (
+                <SelectItem key={`${court.state_code}-${court.court_code}`} value={court.state_code}>
+                  {court.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         
         <Tabs value={searchType} onValueChange={(v) => setSearchType(v as SearchType)} className="mt-4">
           <TabsList className="grid grid-cols-4 w-full bg-muted">
@@ -165,9 +224,9 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
           <TabsContent value="case" className="mt-6 space-y-4 animate-fade-in">
             <div className="space-y-2">
               <Label>Case Type</Label>
-              <Select value={caseType} onValueChange={setCaseType}>
+              <Select value={caseType} onValueChange={setCaseType} disabled={loadingCaseTypes}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select case type" />
+                  <SelectValue placeholder={loadingCaseTypes ? "Loading case types..." : "Select case type"} />
                 </SelectTrigger>
                 <SelectContent>
                   {caseTypes.map((type) => (
