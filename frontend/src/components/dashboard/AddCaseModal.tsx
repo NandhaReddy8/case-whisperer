@@ -25,7 +25,24 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
   // Dynamic data
   const [caseTypes, setCaseTypes] = useState<CaseType[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
-  const [loadingCaseTypes, setLoadingCaseTypes] = useState(false);
+  const loadCaseTypes = async () => {
+      try {
+        setLoadingCaseTypes(true);
+        // Parse court selection
+        const [courtStateCode, courtCode] = selectedCourt.includes('-') 
+          ? selectedCourt.split('-') 
+          : [selectedCourt, undefined];
+
+        const response = await apiClient.getCaseTypes(courtStateCode, courtCode);
+        if (response.data?.case_types) {
+          setCaseTypes(response.data.case_types);
+        }
+      } catch (error) {
+        console.error('Error loading case types:', error);
+      } finally {
+        setLoadingCaseTypes(false);
+      }
+    };
 
   // Form states
   const [cnrNumber, setCnrNumber] = useState('');
@@ -72,6 +89,11 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
     setIsLoading(true);
     
     try {
+      // Parse court selection (format: "stateCode" or "stateCode-courtCode")
+      const [courtStateCode, courtCode] = selectedCourt.includes('-') 
+        ? selectedCourt.split('-') 
+        : [selectedCourt, undefined];
+      
       // Prepare search request
       const searchRequest = apiClient.convertSearchFormData({
         searchType,
@@ -81,7 +103,8 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
         year: year || undefined,
         diaryNumber: diaryNumber || undefined,
         partyName: partyName || undefined,
-        courtStateCode: selectedCourt,
+        courtStateCode: courtStateCode,
+        courtCode: courtCode,
       });
 
       // Add case using the API
@@ -176,7 +199,10 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
             </SelectTrigger>
             <SelectContent>
               {courts.map((court) => (
-                <SelectItem key={`${court.state_code}-${court.court_code}`} value={court.state_code}>
+                <SelectItem 
+                  key={`${court.state_code}-${court.court_code || 'main'}`} 
+                  value={`${court.state_code}${court.court_code ? `-${court.court_code}` : ''}`}
+                >
                   {court.name}
                 </SelectItem>
               ))}

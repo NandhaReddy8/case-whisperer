@@ -22,6 +22,14 @@ class CaseService:
         """Search for a case on eCourt and add it to database"""
         search_req = case_create.search_request
         
+        # Log the search request for debugging
+        logger.info(f"Search request: type={search_req.search_type}, "
+                   f"case_type={search_req.case_type}, "
+                   f"case_number={search_req.case_number}, "
+                   f"year={search_req.year}, "
+                   f"cnr={search_req.cnr_number}, "
+                   f"court={search_req.court_state_code}")
+        
         # Create court object with validation
         try:
             court = Court(
@@ -80,6 +88,8 @@ class CaseService:
             )
 
             # Create database record with enhanced data
+            from app.lib.court_names import get_court_name
+            
             db_case = CaseModel(
                 cnr_number=expanded_case.cnr_number,
                 case_number=expanded_case.case_number,
@@ -90,7 +100,7 @@ class CaseService:
                 next_hearing_date=self._extract_next_hearing_date(expanded_case),
                 petitioner=expanded_case.petitioners[0].name if expanded_case.petitioners else None,
                 respondent=expanded_case.respondents[0].name if expanded_case.respondents else None,
-                court_name=f"High Court - {court.state_code}",
+                court_name=get_court_name(court.state_code, court.court_code),
                 advocates=self._extract_advocates(expanded_case),
                 case_data=expanded_case.json(),
                 sync_calendar=case_create.sync_calendar,

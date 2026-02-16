@@ -360,16 +360,18 @@ async def get_act_types(
 
 @router.get("/courts")
 async def get_courts():
-    """Get list of available courts"""
+    """Get list of available courts with proper names"""
     try:
         from app.lib.entities import Court
+        from app.lib.court_names import get_court_name
+        
         courts = []
         for court in Court.enumerate():
+            court_name = get_court_name(court.state_code, court.court_code)
             courts.append({
                 "state_code": court.state_code,
                 "court_code": court.court_code,
-                "name": f"High Court - State {court.state_code}" + 
-                       (f" - Bench {court.court_code}" if court.court_code else "")
+                "name": court_name
             })
         return {"courts": courts}
     except Exception as e:
