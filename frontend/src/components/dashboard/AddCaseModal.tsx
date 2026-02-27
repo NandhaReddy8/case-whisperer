@@ -25,24 +25,7 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
   // Dynamic data
   const [caseTypes, setCaseTypes] = useState<CaseType[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
-  const loadCaseTypes = async () => {
-      try {
-        setLoadingCaseTypes(true);
-        // Parse court selection
-        const [courtStateCode, courtCode] = selectedCourt.includes('-') 
-          ? selectedCourt.split('-') 
-          : [selectedCourt, undefined];
-
-        const response = await apiClient.getCaseTypes(courtStateCode, courtCode);
-        if (response.data?.case_types) {
-          setCaseTypes(response.data.case_types);
-        }
-      } catch (error) {
-        console.error('Error loading case types:', error);
-      } finally {
-        setLoadingCaseTypes(false);
-      }
-    };
+  const [loadingCaseTypes, setLoadingCaseTypes] = useState(false);
 
   // Form states
   const [cnrNumber, setCnrNumber] = useState('');
@@ -51,7 +34,7 @@ export function AddCaseModal({ onAddCase }: AddCaseModalProps) {
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [diaryNumber, setDiaryNumber] = useState('');
   const [partyName, setPartyName] = useState('');
-  const [selectedCourt, setSelectedCourt] = useState('6'); // Default to Gujarat
+  const [selectedCourt, setSelectedCourt] = useState('17'); // Default to Gujarat High Court
 
   useEffect(() => {
     if (open) {
